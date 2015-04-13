@@ -50,6 +50,18 @@ function be_sample_metaboxes( $meta_boxes ) {
   ) );
 
   $poll_metabox->add_field( array(
+    'name'       => __( 'Question ID', 'cmb2' ),
+    // 'desc'       => __( 'field description (optional)', 'cmb2' ),
+    'id'         => $prefix . 'question_id',
+    'type'       => 'hidden',
+    // 'show_on_cb' => 'yourprefix_hide_if_no_cats', // function should return a bool value
+    // 'sanitization_cb' => 'my_custom_sanitization', // custom sanitization callback parameter
+    // 'escape_cb'       => 'my_custom_escaping',  // custom escaping callback parameter
+    // 'on_front'        => false, // Optionally designate a field to wp-admin only
+    // 'repeatable'      => true,
+  ) );
+
+  $poll_metabox->add_field( array(
     'name'       => __( 'Topic', 'cmb2' ),
     // 'desc'       => __( 'field description (optional)', 'cmb2' ),
     'id'         => $prefix . 'topic',
@@ -74,6 +86,12 @@ function be_sample_metaboxes( $meta_boxes ) {
   ) );
 
   $poll_metabox->add_group_field( $choice_group_id, array(
+    'name'       => __( 'Answer Id', 'cmb2' ),
+    'id'         => 'answer_id',
+    'type'       => 'hidden',
+    // 'repeatable' => true, // Repeatable fields are supported w/in repeatable groups (for most types)
+  ) );
+  $poll_metabox->add_group_field( $choice_group_id, array(
     'name'       => __( 'Choice', 'cmb2' ),
     'id'         => 'choice',
     'type'       => 'text',
@@ -84,10 +102,26 @@ function be_sample_metaboxes( $meta_boxes ) {
 }
 
 function prfx_meta_save( $post_id, $post, $update ) {
+  // echo "===============================\n";
+  // print_r($_POST['piya_poll_id']);
+  // echo "===============================\n";
+  // print_r(  get_post_meta( $post_id ) );
+  // echo "===============================\n";
+  
   $poll = new Poll($_POST);
-  $response_object = json_decode( $poll->send_poll() );
-  $old_response_id = get_post_meta( $post_id, 'piya_poll_id', true );
-  update_post_meta( $post_id, 'piya_poll_id', $response_object->key_id, $old_response_id );
+  if( empty( $poll->id ) ) {
+    $response_object = $poll->create();
+  } else {
+    $response_object = $poll->update();
+  }
+  $_POST['piya_poll_id'] = $response_object->id;
+  $question = $response_object->questions[0];
+  $_POST['piya_question_id'] = $question->id;
+  $answers = $question->answers;
+  foreach ($answers as $index => $answer) {
+    $_POST['piya_choice_group'][$index]['answer_id'] = $answer->id;
+  }
+  // exit();
 }
 add_action( 'publish_post', 'prfx_meta_save', 10, 3 );
 
