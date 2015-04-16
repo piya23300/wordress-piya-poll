@@ -9,6 +9,17 @@ Version: 0.0.1
 tags: poll, survey
 */
 
+require_once( 'models/poll.php' );
+
+#================================
+#==== Options Setting Page ======
+#================================
+require_once( 'settings.php' );
+$settings_page = new Myprefix_Admin();
+$settings_page->hooks();
+#================================
+#================================
+
 // Initialize the metabox class
 add_action( 'init', 'be_initialize_cmb_meta_boxes', 9999 );
 function be_initialize_cmb_meta_boxes() {
@@ -17,13 +28,10 @@ function be_initialize_cmb_meta_boxes() {
   } elseif ( file_exists( dirname( __FILE__ ) . '/lib/CMB2/init.php' ) ) {
     require_once dirname( __FILE__ ) . '/lib/CMB2/init.php';
   }
-  if ( !class_exists( 'poll' ) ) {
-    require_once( 'models/poll.php' );
-  }
 }
 
-add_filter( 'cmb2_init', 'be_sample_metaboxes' );
-function be_sample_metaboxes( $meta_boxes ) {
+add_filter( 'cmb2_init', 'piya_poll_metaboxes' );
+function piya_poll_metaboxes( $meta_boxes ) {
   $prefix = 'piya_'; // Prefix for all fields
 
   $poll_metabox = new_cmb2_box( array(
@@ -101,19 +109,20 @@ function be_sample_metaboxes( $meta_boxes ) {
   return $meta_boxes;
 }
 
-function prfx_meta_save( $post_id, $post, $update ) {
-  // echo "===============================\n";
-  // print_r($_POST['piya_poll_id']);
-  // echo "===============================\n";
-  // print_r(  get_post_meta( $post_id ) );
-  // echo "===============================\n";
-  
-  $poll = new Poll($_POST);
+
+#====================================
+#======== hook action save    ======
+#====================================
+add_action( 'publish_post', 'piya_poll_save', 10, 3 );
+function piya_poll_save( $post_id, $post, $update ) {
+  $poll = piya_poll_get_poll( $post_id );
   if( empty( $poll->id ) ) {
-    $response_object = $poll->create();
+    $response_object = $poll->create($_POST);
   } else {
-    $response_object = $poll->update();
+    $response_object = $poll->update($_POST);
   }
+  
+  # set response to update post
   $_POST['piya_poll_id'] = $response_object->id;
   $question = $response_object->questions[0];
   $_POST['piya_question_id'] = $question->id;
@@ -121,7 +130,22 @@ function prfx_meta_save( $post_id, $post, $update ) {
   foreach ($answers as $index => $answer) {
     $_POST['piya_choice_group'][$index]['answer_id'] = $answer->id;
   }
-  // exit();
 }
-add_action( 'publish_post', 'prfx_meta_save', 10, 3 );
 
+add_action( 'transition_post_status', 'piya_poll_update_status', 10, 3 );
+function piya_poll_update_status( $new_status, $old_status, $post ) {
+  if ( ($new_status != $old_status) && ($new_status != 'publish' ) ) {
+    $poll = piya_poll_get_poll( $post->ID );
+    if( !empty( $poll->id ) ) {
+      $poll->update( array( 'post_status' => $new_status ) );
+    } 
+  }
+}
+
+
+function piya_poll_get_poll( $post_id ) {
+  $settings_page = $GLOBALS['settings_page'];
+  $secrect_key = cmb2_get_option( $settings_page->key, 'secrect_key' );
+  $poll = new Poll( $post_id, $secrect_key );
+  return $poll;
+}
