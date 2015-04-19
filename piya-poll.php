@@ -20,13 +20,6 @@ $settings_page->hooks();
 #================================
 #================================
 
-function settings_link($new_tab=false) {
-  $target = $new_tab ? 'target="_blank"' : '';
-  $settings_page = $GLOBALS['settings_page'];
-  $settings_link = '<a href="'.admin_url( "options-general.php?page=". $settings_page->key ).'" '.$target.'>Settings</a>';
-  return $settings_link;
-}
-
 add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), 'add_action_links' );
 function add_action_links ( $links ) {
   array_unshift( $links, settings_link() );
@@ -178,6 +171,17 @@ function piya_poll_update_status( $new_status, $old_status, $post ) {
 
   }
 }
+
+#############################
+#### HELPER METHODS #########
+#############################
+function settings_link($new_tab=false) {
+  $target = $new_tab ? 'target="_blank"' : '';
+  $settings_page = $GLOBALS['settings_page'];
+  $settings_link = '<a href="'.admin_url( "options-general.php?page=". $settings_page->key ).'" '.$target.'>Settings</a>';
+  return $settings_link;
+}
+
 function get_piya_poll_key() {
   $settings_page = $GLOBALS['settings_page'];
   $secret_key = cmb2_get_option( $settings_page->key, 'secrect_key' );
