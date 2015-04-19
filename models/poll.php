@@ -23,6 +23,9 @@ class Poll {
   }
 
   public function create( $attrs ) {
+    if( empty( $this->secret_key ) ) return (object)array( 'error' => 401,  'message' => 'key not present');
+    if( empty( $this->topic ) ) return (object)array( 'error' => 422, 'message' => 'skiped create or update topic because topic not present');
+    
     $url = self::$request_domain . '/surveys';
     $this->permit_poll($attrs);
 
@@ -32,11 +35,15 @@ class Poll {
       ),
       'body' => json_encode( $this->poll_attrs() )
     );
-    $response = wp_remote_retrieve_body( wp_remote_post( $url, $send_attrs ) );
+
+    $response = wp_remote_retrieve_body( wp_remote_post( $url, $send_attrs ) );  
     return json_decode($response);
   }
 
   public function update( $attrs ) {
+    if( empty( $this->secret_key ) ) return (object)array( 'error' => 401,  'message' => 'key not present');
+    if( empty( $this->topic ) ) return (object)array( 'error' => 422, 'message' => 'skiped create or update topic because topic not present');
+    
     $url = self::$request_domain . '/surveys/' . $this->id;
     $this->permit_poll($attrs);
 
@@ -63,7 +70,7 @@ class Poll {
           array(
             'id' => $this->question_id,
             'title' => $this->topic,
-            'order' => 1,
+            'position' => 1,
             'answers_attributes' => $this->answers_array()
           )
         )
@@ -104,11 +111,11 @@ class Poll {
 
   private function answers_array() {
     $answers = array();
-    foreach ($this->choices as $order=>$choice) {
+    foreach ($this->choices as $position => $choice) {
       array_push($answers, array(
         'id' => $choice['answer_id'],
         'text' => $choice['choice'], 
-        'order' => $order+1
+        'position' => $position+1
       ) );
     }
     return $answers;
