@@ -8,6 +8,7 @@ class Poll {
   private static $request_domain = 'http://0.0.0.0:3000/api/v1';
   private $post_data;
   public $post_id;
+  public $metabox_id = 'piya_poll_metabox';
   public $id;
   public $question_id;
   public $topic;
@@ -81,11 +82,10 @@ class Poll {
   }
 
   private function init_poll() {
-    $metabox = 'piya_poll_metabox';
-    $this->id = cmb2_get_field_value( $metabox, 'piya_poll_id', $this->post_id );
-    $this->question_id = cmb2_get_field_value( $metabox, 'piya_question_id', $this->post_id );
-    $this->topic = cmb2_get_field_value( $metabox, 'piya_topic', $this->post_id );
-    $this->choices = cmb2_get_field( $metabox, 'piya_choice_group', $this->post_id )->value;
+    $this->id = cmb2_get_field_value( $this->metabox_id, 'piya_poll_id', $this->post_id );
+    $this->question_id = cmb2_get_field_value( $this->metabox_id, 'piya_question_id', $this->post_id );
+    $this->topic = cmb2_get_field_value( $this->metabox_id, 'piya_topic', $this->post_id );
+    $this->choices = cmb2_get_field( $this->metabox_id, 'piya_choice_group', $this->post_id )->value;
     $this->blog_status = get_post_status( $this->post_id );
     $this->blog_url = wp_get_shortlink( $this->post_id ); 
   }
@@ -111,15 +111,55 @@ class Poll {
 
   private function answers_array() {
     $answers = array();
+
+    # update or create answers
     foreach ($this->choices as $position => $choice) {
       array_push($answers, array(
         'id' => $choice['answer_id'],
         'text' => $choice['choice'], 
-        'position' => $position+1
+        'position' => $position+1,
+        '_destroy' => 0
+      ) );
+    }
+
+    # destroy answers
+    $destory_answers = array();
+    array_push( $destory_answers, $this->answers_was_deleted() );
+    foreach ($destory_answers as $choice) {
+      array_push($answers, array(
+        'id' => $choice['answer_id'],
+        'text' => $choice['choice'], 
+        '_destroy' => 1
       ) );
     }
     return $answers;
   }
+
+  private function answers_was_deleted() {
+    $old_choices = cmb2_get_field( $this->metabox_id, 'piya_choice_group', $this->post_id )->value;
+    $new_choices = $this->choices;
+    foreach ($old_choices as $old_choice) {
+      $response = $this->search( $new_choices, 'answer_id', $old_choice['answer_id']);
+      if( $response == null ) {
+        return $old_choice;
+      }
+    }
+    return;
+  }
+
+  private function search($array, $key, $value) {
+    if (is_array($array)) {
+      if (isset($array[$key]) && $array[$key] == $value) {
+        return $array;
+      }
+
+      foreach ($array as $subarray) {
+        $rs = $this->search($subarray, $key, $value);
+        if($rs!=null) return $subarray;
+      }
+    }
+    return null;
+  } 
 
   private function generate_status( $status ) {
     $deleted = ['trash'];

@@ -134,7 +134,6 @@ function piya_poll_metaboxes( $meta_boxes ) {
 #====================================
 add_action( 'publish_post', 'piya_poll_save', 10, 2 );
 function piya_poll_save( $post_id, $post ) {
-
   if( !empty( get_piya_poll_key() ) ) {
     
     $poll = piya_poll_get_poll( $post_id );
